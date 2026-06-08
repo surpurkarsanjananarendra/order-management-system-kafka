@@ -1,0 +1,80 @@
+definitions:
+  models.BFFPublishOrderRequest:
+    properties:
+      customer_id:
+        example: "201"
+        type: string
+      order_id:
+        example: "101"
+        type: string
+      price:
+        example: 149.9
+        type: number
+      product_name:
+        example: shampoo
+        type: string
+      quantity:
+        example: 2
+        type: integer
+    type: object
+  models.ErrorAPIResponse:
+    properties:
+      error:
+        type: string
+      errors:
+        $ref: '#/definitions/models.ErrorMessage'
+    type: object
+  models.ErrorMessage:
+    properties:
+      errorMessage:
+        type: string
+      key:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: Producer APIs for Publishing Events in Order Management System
+  title: Producer Service API
+  version: "1.0"
+paths:
+  /api/orders:
+    post:
+      consumes:
+      - application/json
+      description: Publish order event to kafka
+      parameters:
+      - description: order publish Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.BFFPublishOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: order received successfully
+          schema:
+            $ref: '#/definitions/models.BFFPublishOrderRequest'
+        "400":
+          description: Invalid input payload
+          schema:
+            $ref: '#/definitions/models.ErrorAPIResponse'
+        "409":
+          description: Duplicate value in request
+          schema:
+            $ref: '#/definitions/models.ErrorAPIResponse'
+        "500":
+          description: Internal Server error
+          schema:
+            $ref: '#/definitions/models.ErrorAPIResponse'
+      summary: Publish New Order
+      tags:
+      - Orders
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Producer
+    type: apiKey
+    x-extension-openapi: '{"example": "value on a json format"}'
+swagger: "2.0"

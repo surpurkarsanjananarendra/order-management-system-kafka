@@ -1,0 +1,120 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Producer APIs for Publishing Events in Order Management System",
+        "title": "Producer Service API",
+        "contact": {},
+        "version": "1.0"
+    },
+    "paths": {
+        "/api/orders": {
+            "post": {
+                "description": "Publish order event to kafka",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Orders"
+                ],
+                "summary": "Publish New Order",
+                "parameters": [
+                    {
+                        "description": "order publish Request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.BFFPublishOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "order received successfully",
+                        "schema": {
+                            "$ref": "#/definitions/models.BFFPublishOrderRequest"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input payload",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorAPIResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Duplicate value in request",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorAPIResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server error",
+                        "schema": {
+                            "$ref": "#/definitions/models.ErrorAPIResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.BFFPublishOrderRequest": {
+            "type": "object",
+            "properties": {
+                "customer_id": {
+                    "type": "string",
+                    "example": "201"
+                },
+                "order_id": {
+                    "type": "string",
+                    "example": "101"
+                },
+                "price": {
+                    "type": "number",
+                    "example": 149.9
+                },
+                "product_name": {
+                    "type": "string",
+                    "example": "shampoo"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
+        "models.ErrorAPIResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "errors": {
+                    "$ref": "#/definitions/models.ErrorMessage"
+                }
+            }
+        },
+        "models.ErrorMessage": {
+            "type": "object",
+            "properties": {
+                "errorMessage": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Producer",
+            "in": "header",
+            "x-extension-openapi": "{\"example\": \"value on a json format\"}"
+        }
+    }
+}
