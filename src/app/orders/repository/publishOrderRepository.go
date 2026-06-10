@@ -35,7 +35,7 @@ func (k *KafkaRepository) PublishOrder(request models.BFFPublishOrderRequest) er
 		return err
 	}
 	err = k.producer.Publish(
-		"orders",       //topic name
+		"temp",         //topic name
 		encodedMessage, //message to be stored
 	)
 

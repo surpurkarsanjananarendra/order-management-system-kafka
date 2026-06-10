@@ -43,7 +43,7 @@ func main() {
 	// 4. Start Kafka consumer in goroutine
 	// ConsumeOrder(ctx, db.DB) builds the callback closure
 	// StartConsumer calls it for every message
-	go kafka.StartConsumer("orders", repository.ConsumeOrder(ctx, db.DB))
+	go kafka.StartConsumer("temp", repository.ConsumeOrder(ctx, db.DB))
 	fmt.Println("=== Kafka consumer started ===")
 
 	// 5. Block until Ctrl+C or kill signal

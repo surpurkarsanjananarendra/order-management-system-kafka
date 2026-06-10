@@ -2,10 +2,11 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
+	// "encoding/json"
 	"fmt"
 	"order-consumers/commons/constants"
-	"order_management_system/src/models"
+
+	// "order_management_system/src/models"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -18,19 +19,8 @@ func ConsumeOrder(ctx context.Context, db *gorm.DB) func(map[string]any) { // th
 		start := time.Now()
 		logger := logrus.New()
 
-		jsonBytes, err := json.Marshal(payload)
-		if err != nil {
-			fmt.Println("Failed to marshal payload to JSON:", err)
-			return
-		}
-
-		var order models.Orders
-		if err := json.Unmarshal(jsonBytes, &order); err != nil {
-			fmt.Println("Failed to unmarshal JSON into Orders struct:", err)
-			return
-		}
-
-		result := db.WithContext(ctx).Table(constants.OrdersTableName).Create(&order)
+        //we already have data in struct form in payload with address, just pass it as it is wihout &, it will work!!
+		result := db.WithContext(ctx).Table(constants.OrdersTableName).Create(payload)
 		if result.Error != nil {
 			fmt.Println("DB insert error:", result.Error)
 			return
