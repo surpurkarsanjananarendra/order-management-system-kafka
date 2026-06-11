@@ -5,7 +5,6 @@ go 1.25.0
 require (
 	github.com/IBM/sarama v1.50.1
 	github.com/go-playground/validator/v10 v10.30.2
-	github.com/joho/godotenv v1.5.1
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.31.1
 )
