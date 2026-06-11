@@ -1,6 +1,10 @@
 package kafka
 
-import "github.com/IBM/sarama"
+import (
+	"os"
+
+	"github.com/IBM/sarama"
+)
 
 var Brokers = []string{
 	"192.168.3.163:19092",
@@ -17,9 +21,14 @@ func GetKafkaConfig() *sarama.Config { //config is used to pass multiple configu
 
 	config.Producer.RequiredAcks = sarama.WaitForAll
 
-	config.Producer.Partitioner = sarama.NewRandomPartitioner//returns partitioner that selects partition randomly
+	config.Producer.Partitioner = sarama.NewRandomPartitioner //returns partitioner that selects partition randomly
 
 	config.Metadata.Full = true
+
+	compression := os.Getenv("KAFKA_COMPRESSION")
+
+	// pass to helper
+	applyCompression(config, compression)
 
 	return config
 }

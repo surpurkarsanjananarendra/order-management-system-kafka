@@ -12,15 +12,23 @@ import (
 	"order_management_system/src/utils/database"
 	"order_management_system/src/utils/kafka"
 
+	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
+	err := godotenv.Load("C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System/.env")
+	if err != nil {
+		log.Println(".env file not found, using system env")
+	} else {
+		fmt.Println("ENV loaded successfully!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// 1. Init DB
-	err := database.InitDB()
+	err = database.InitDB()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
@@ -43,7 +51,17 @@ func main() {
 	// 4. Start Kafka consumer in goroutine
 	// ConsumeOrder(ctx, db.DB) builds the callback closure
 	// StartConsumer calls it for every message
-	go kafka.StartConsumer("temp", repository.ConsumeOrder(ctx, db.DB))
+
+	topic := os.Getenv("KAFKA_ORDER_TOPIC")
+
+	if topic == "" {
+		log.Fatal("KAFKA_ORDER_TOPIC not found")
+	}
+	go kafka.StartConsumer(
+		ctx,
+		topic,
+		repository.ConsumeOrder(ctx, db.DB),
+	)
 	fmt.Println("=== Kafka consumer started ===")
 
 	// 5. Block until Ctrl+C or kill signal

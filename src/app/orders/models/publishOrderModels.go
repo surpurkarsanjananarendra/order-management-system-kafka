@@ -11,3 +11,4 @@ type BFFPublishOrderRequest struct {
 type BFFPublishOrderResponse struct {
 	Message string `json:"message" example:"Order Received Successfully"`
 }
+

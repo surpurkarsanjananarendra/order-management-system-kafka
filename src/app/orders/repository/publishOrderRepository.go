@@ -1,8 +1,7 @@
 package repository
 
 import (
-	"encoding/json"
-	"log"
+	genericModels "order_management_system/src/models"
 	"order_management_system/src/utils/kafka"
 	"orders/models"
 	"time"
@@ -10,38 +9,31 @@ import (
 
 type KafkaRepository struct {
 	producer *kafka.Producer
+	topic    string
 }
 
-func NewKafkaRepository(producer *kafka.Producer) *KafkaRepository {
+func NewKafkaRepository(topic string, producer *kafka.Producer) *KafkaRepository {
 
 	return &KafkaRepository{
 		producer: producer,
+		topic:    topic,
 	}
 }
 
 func (k *KafkaRepository) PublishOrder(request models.BFFPublishOrderRequest) error {
-	ordersBytes, _ := json.Marshal(request) //convert to json inorder to add a new field
 
-	var order map[string]any
-	if err := json.Unmarshal(ordersBytes, &order); err != nil { //convert to struct to have the updated request body
-		log.Fatalf("Error unmarshaling: %v", err)
+	event := genericModels.OrderEvent{
+		OrderID:     request.OrderID,
+		CustomerID:  request.CustomerID,
+		ProductName: request.ProductName,
+		Quantity:    request.Quantity,
+		Price:       request.Price,
+		CreatedAt:   time.Now(),
 	}
 
-	order["created_at"] = time.Now()
-
-	encodedMessage, err := kafka.EncodeMessage(order) //convert it again to json so that kafka can process and store event
-
+	payload, err := kafka.EncodeMessage(event)
 	if err != nil {
 		return err
 	}
-	err = k.producer.Publish(
-		"temp",         //topic name
-		encodedMessage, //message to be stored
-	)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return k.producer.Publish(k.topic, request.OrderID, payload)
 }

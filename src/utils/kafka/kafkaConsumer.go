@@ -4,15 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"order_management_system/src/models"
+	"os"
 	"time"
 
 	"github.com/IBM/sarama"
 )
 
-type OrderConsumerGroup struct {
-	callback func(map[string]any)
-}
+type KeyValueCallback func(string, models.OrderEvent) error
 
+type OrderConsumerGroup struct {
+	callback interface{}
+}
 
 func (o *OrderConsumerGroup) Setup(session sarama.ConsumerGroupSession) error {
 	fmt.Println("=== Setup: Consumer group session started ===")
@@ -25,34 +28,65 @@ func (o *OrderConsumerGroup) Cleanup(session sarama.ConsumerGroupSession) error 
 	return nil
 }
 
-func (o *OrderConsumerGroup) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (o *OrderConsumerGroup) ConsumeClaim(
+	session sarama.ConsumerGroupSession,
+	claim sarama.ConsumerGroupClaim,
+) error {
+
 	fmt.Println("=== ConsumeClaim started for partition:", claim.Partition(), "===")
 
-	//this is infinite listening loop which will not exit unless sarama stops during rebalancing
 	for msg := range claim.Messages() {
-		fmt.Printf("Partition: %d | Offset: %d\n", msg.Partition, msg.Offset)
-		fmt.Println("Raw Value:", string(msg.Value))
 
-		//whatever messages or the data we got from kafka is in the JSON form
-		//hence we unmarshall JSON to STRUCT and store it to the payload
-		var payload map[string]any
-		if err := json.Unmarshal(msg.Value, &payload); err != nil {
+		fmt.Printf(
+			"Partition=%d Offset=%d Key=%s\n",
+			msg.Partition,
+			msg.Offset,
+			string(msg.Key),
+		)
+
+		var event models.OrderEvent
+
+		if err := json.Unmarshal(msg.Value, &event); err != nil {
 			fmt.Println("UNMARSHAL FAILED:", err)
-			//tells kafka this msg has been processed and updates offset, after restart, it will process from he next offset not from first
 			session.MarkMessage(msg, "")
 			continue
 		}
 
-		fmt.Println("Payload received:", payload)
-		o.callback(payload)
+		err := o.callback.(KeyValueCallback)(
+			string(msg.Key),
+			event,
+		)
+
+		if err != nil {
+			fmt.Println("callback failed:", err)
+			continue
+		}
 
 		session.MarkMessage(msg, "")
 		fmt.Println("Message marked as processed")
 	}
+
 	return nil
 }
 
-func StartConsumer(topic string, callback func(map[string]any)) {
+func (o *OrderConsumerGroup) ConfigureCallback(callback interface{}) error {
+
+	_, ok := callback.(KeyValueCallback)
+
+	if !ok {
+		return fmt.Errorf("invalid callback type")
+	}
+
+	o.callback = callback
+
+	return nil
+}
+
+func StartConsumer(
+	ctx context.Context,
+	topic string,
+	callback KeyValueCallback,
+) {
 	config := sarama.NewConfig()
 	config.Consumer.Offsets.Initial = sarama.OffsetOldest
 	//after every one second the commit is processed to offsets so that after restare it should avoid  reprocessing of the processed offsets
@@ -71,18 +105,35 @@ func StartConsumer(topic string, callback func(map[string]any)) {
 	config.Metadata.Retry.Max = 5                              // retry fetching metadata 5 times
 	config.Metadata.Retry.Backoff = 2 * time.Second            // wait 2s between retries
 
-	config.Version = sarama.V2_6_0_0
+	config.Version = sarama.V3_6_0_0
 
 	fmt.Println("=== Connecting to Kafka brokers:", Brokers, "===")
 
-	group, err := sarama.NewConsumerGroup(Brokers, "order-consumer-group-v1", config)
+	groupID := os.Getenv("KAFKA_CONSUMER_GROUP")
+
+	if groupID == "" {
+		groupID = "order-consumer-group-v1"
+	}
+
+	group, err := sarama.NewConsumerGroup(
+		Brokers,
+		groupID,
+		config,
+	)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create consumer group: %v", err))
 	}
 	defer group.Close()
 
-	handler := &OrderConsumerGroup{callback: callback}
-	ctx := context.Background()
+	handler := &OrderConsumerGroup{}
+
+	err = handler.ConfigureCallback(
+		KeyValueCallback(callback),
+	)
+
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("=== Consumer group started, waiting for messages... ===")
 

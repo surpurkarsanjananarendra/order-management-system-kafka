@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetRouter(db *gorm.DB, producer *kafka.Producer, logger *logrus.Logger) *gin.Engine {
+func GetRouter(db *gorm.DB, topic string, producer *kafka.Producer, logger *logrus.Logger) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger())
 	router.Use(gin.Recovery())
@@ -32,7 +32,7 @@ func GetRouter(db *gorm.DB, producer *kafka.Producer, logger *logrus.Logger) *gi
 		AllowHeaders:    []string{"Authorization", "Content-type", "Origin"},
 	}))
 
-	kafkaRepo := repository.NewKafkaRepository(producer)
+	kafkaRepo := repository.NewKafkaRepository(topic,producer)
 	kafkaService := business.NewPublishOrderService(kafkaRepo)
 	kafkaHandler := handlers.NewPublishOrderHandler(kafkaService)
 

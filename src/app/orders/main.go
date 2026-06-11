@@ -1,11 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"order_management_system/src/utils/database"
 	"order_management_system/src/utils/kafka"
 	"orders/router"
+	"os"
 
+	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -19,7 +22,16 @@ import (
 // @name Producer
 // @x-extension-openapi {"example": "value on a json format"}
 func main() {
-	err := database.InitDB()
+	err := godotenv.Load("C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System/.env")
+	if err != nil {
+		log.Println(".env file not found, using system env")
+	} else {
+		fmt.Println("ENV loaded successfully!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+	}
+
+	orderTopic := os.Getenv("KAFKA_ORDER_TOPIC")
+
+	err = database.InitDB()
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
@@ -35,10 +47,13 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	startRouter(db.DB, producer, logger)
+
+	defer producer.Close()
+
+	startRouter(db.DB, orderTopic, producer, logger)
 }
 
-func startRouter(db *gorm.DB, producer *kafka.Producer, logger *logrus.Logger) {
-	router := router.GetRouter(db, producer, logger)
+func startRouter(db *gorm.DB, topic string, producer *kafka.Producer, logger *logrus.Logger) {
+	router := router.GetRouter(db, topic, producer, logger)
 	router.Run(":9090")
 }

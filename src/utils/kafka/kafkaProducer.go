@@ -4,12 +4,19 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"github.com/IBM/sarama"
 )
 
 type Producer struct {
 	producer sarama.AsyncProducer
+	timeout  time.Duration
+}
+
+type KafkaMessage struct {
+	Key   string
+	Value interface{}
 }
 
 func NewProducer() (*Producer, error) {
@@ -51,61 +58,66 @@ func NewProducer() (*Producer, error) {
 
 	prod := &Producer{
 		producer: p,
+		timeout:  50 * time.Millisecond, // can later move to config/env
 	}
 
-	go prod.handleSuccess()
-	go prod.handleErrors()
+	go handleSuccess(prod.producer.Successes())
+	go handleErrors(prod.producer.Errors())
 
 	return prod, nil
 }
 
-func (p *Producer) Publish(topic string, message []byte) error {
-	msg := &sarama.ProducerMessage{ //ProducerMessage is the collection of elements passed to the Producer in order to send a message.
+func (p *Producer) Publish(topic string, key string, message []byte) error {
+
+	msg := &sarama.ProducerMessage{
 		Topic: topic,
 		Value: sarama.ByteEncoder(message),
 	}
 
-	fmt.Printf("Topic: %s\n", topic)
-	fmt.Printf("Message: %s\n", string(message))
+	if key != "" {
+		msg.Key = sarama.StringEncoder(key)
+	}
 
-	p.producer.Input() <- msg
+	select {
+	case p.producer.Input() <- msg:
+		return nil
 
-	return nil
-}
-
-func (p *Producer) handleSuccess() {
-	for msg := range p.producer.Successes() {
-
-		fmt.Printf(
-			"Topic=%s Partition=%d Offset=%d\n",
-			msg.Topic,
-			msg.Partition,
-			msg.Offset,
-		)
+	case <-time.After(p.timeout):
+		return fmt.Errorf("kafka producer buffer full / timeout")
 	}
 }
 
-func (p *Producer) handleErrors() {
-	for err := range p.producer.Errors() {
+//currently we are not using this fuction because the application is small scaled, it is written just to show that the application is capable of high scaled data production management
+func (p *Producer) PublishBatch(topic string, messages []KafkaMessage) error {
 
-		fmt.Printf(
-			"Error: %v\n",
-			err.Err,
-		)
+	if len(messages) == 0 {
+		return fmt.Errorf("no messages to publish")
+	}
 
-		if err.Msg != nil {
+	for _, m := range messages {
 
-			fmt.Printf(
-				"Topic: %s\n",
-				err.Msg.Topic,
-			)
+		encoded, err := EncodeMessage(m.Value)
+		if err != nil {
+			return err
+		}
 
-			fmt.Printf(
-				"Partition: %d\n",
-				err.Msg.Partition,
-			)
+		msg := &sarama.ProducerMessage{
+			Topic: topic,
+			Value: sarama.ByteEncoder(encoded),
+		}
+
+		if m.Key != "" {
+			msg.Key = sarama.StringEncoder(m.Key)
+		}
+
+		select {
+		case p.producer.Input() <- msg:
+		case <-time.After(p.timeout):
+			return fmt.Errorf("kafka batch publish timeout")
 		}
 	}
+
+	return nil
 }
 
 func (p *Producer) Close() error {

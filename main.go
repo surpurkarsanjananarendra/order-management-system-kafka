@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+
 	"order_management_system/src/utils/database"
 
 	"order_management_system/src/models"
@@ -26,4 +27,3 @@ func main() {
 	log.Print("Database Migrated successfully")
 
 }
-
