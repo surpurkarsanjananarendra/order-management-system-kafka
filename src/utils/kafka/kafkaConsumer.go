@@ -107,7 +107,7 @@ func StartConsumer(
 
 	config.Version = sarama.V3_6_0_0
 
-	fmt.Println("=== Connecting to Kafka brokers:", Brokers, "===")
+	// fmt.Println("=== Connecting to Kafka brokers:", Brokers, "===")
 
 	groupID := os.Getenv("KAFKA_CONSUMER_GROUP")
 
@@ -116,7 +116,7 @@ func StartConsumer(
 	}
 
 	group, err := sarama.NewConsumerGroup(
-		Brokers,
+		GetBrokers(),
 		groupID,
 		config,
 	)

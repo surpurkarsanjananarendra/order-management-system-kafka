@@ -31,7 +31,7 @@ func NewProducer() (*Producer, error) {
 	config := GetKafkaConfig() //get saram config
 
 	// Check broker metadata
-	client, err := sarama.NewClient(Brokers, config) //client with broker address and configurations is created
+	client, err := sarama.NewClient(GetBrokers(), config) //client with broker address and configurations is created
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka client: %w", err)
 	}
@@ -45,7 +45,7 @@ func NewProducer() (*Producer, error) {
 	}
 
 	p, err := sarama.NewAsyncProducer(
-		Brokers,
+		GetBrokers(),
 		config,
 	)
 
@@ -87,7 +87,7 @@ func (p *Producer) Publish(topic string, key string, message []byte) error {
 	}
 }
 
-//currently we are not using this fuction because the application is small scaled, it is written just to show that the application is capable of high scaled data production management
+// currently we are not using this fuction because the application is small scaled, it is written just to show that the application is capable of high scaled data production management
 func (p *Producer) PublishBatch(topic string, messages []KafkaMessage) error {
 
 	if len(messages) == 0 {

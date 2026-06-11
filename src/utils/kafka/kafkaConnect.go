@@ -2,12 +2,22 @@ package kafka
 
 import (
 	"os"
+	"strings"
 
 	"github.com/IBM/sarama"
 )
 
-var Brokers = []string{
-	"192.168.3.163:19092",
+func GetBrokers() []string {
+
+	brokers := os.Getenv("KAFKA_BROKERS")
+
+	if brokers == "" {
+		return []string{
+			"localhost:9092",
+		}
+	}
+
+	return strings.Split(brokers, ",")
 }
 
 func GetKafkaConfig() *sarama.Config { //config is used to pass multiple configuration properties to sarama's constructor
