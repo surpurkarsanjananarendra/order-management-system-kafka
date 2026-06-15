@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"order_management_system/src/config"
 	"order_management_system/src/models"
-	"os"
 	"time"
 
 	"github.com/IBM/sarama"
@@ -87,29 +87,34 @@ func StartConsumer(
 	topic string,
 	callback KeyValueCallback,
 ) {
-	config := sarama.NewConfig()
-	config.Consumer.Offsets.Initial = sarama.OffsetOldest
+	configs := sarama.NewConfig()
+	configs.Consumer.Offsets.Initial = sarama.OffsetOldest
 	//after every one second the commit is processed to offsets so that after restare it should avoid  reprocessing of the processed offsets
-	config.Consumer.Offsets.AutoCommit.Enable = true
-	config.Consumer.Offsets.AutoCommit.Interval = 1 * time.Second
-	config.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
+	configs.Consumer.Offsets.AutoCommit.Enable = true
+	configs.Consumer.Offsets.AutoCommit.Interval = 1 * time.Second
+	configs.Consumer.Group.Rebalance.GroupStrategies = []sarama.BalanceStrategy{
 		sarama.NewBalanceStrategyRoundRobin(),
 	}
 
-	config.Consumer.Group.Session.Timeout = 20 * time.Second   // if it doesn't here anything upyo 20 seconds then it will assume that consumer is dead and we need to rebalancing
-	config.Consumer.Group.Heartbeat.Interval = 6 * time.Second // after every 6 seconds consumer sends a heartbeat to the coordinator
-	config.Consumer.MaxProcessingTime = 500 * time.Millisecond // max time to process one message
-	config.Net.DialTimeout = 10 * time.Second                  // timeout to connect to broker
-	config.Net.ReadTimeout = 10 * time.Second                  // timeout to read from broker
-	config.Net.WriteTimeout = 10 * time.Second                 // timeout to write to broker
-	config.Metadata.Retry.Max = 5                              // retry fetching metadata 5 times
-	config.Metadata.Retry.Backoff = 2 * time.Second            // wait 2s between retries
+	configs.Consumer.Group.Session.Timeout = 20 * time.Second   // if it doesn't here anything upyo 20 seconds then it will assume that consumer is dead and we need to rebalancing
+	configs.Consumer.Group.Heartbeat.Interval = 6 * time.Second // after every 6 seconds consumer sends a heartbeat to the coordinator
+	configs.Consumer.MaxProcessingTime = 500 * time.Millisecond // max time to process one message
+	configs.Net.DialTimeout = 10 * time.Second                  // timeout to connect to broker
+	configs.Net.ReadTimeout = 10 * time.Second                  // timeout to read from broker
+	configs.Net.WriteTimeout = 10 * time.Second                 // timeout to write to broker
+	configs.Metadata.Retry.Max = 5                              // retry fetching metadata 5 times
+	configs.Metadata.Retry.Backoff = 2 * time.Second            // wait 2s between retries
 
-	config.Version = sarama.V3_6_0_0
+	configs.Version = sarama.V3_6_0_0
 
 	// fmt.Println("=== Connecting to Kafka brokers:", Brokers, "===")
 
-	groupID := os.Getenv("KAFKA_CONSUMER_GROUP")
+	cfg, err := config.Get(".env")
+	if err != nil {
+		panic(err)
+	}
+
+	groupID := cfg.GetString("KAFKA_CONSUMER_GROUP")
 
 	if groupID == "" {
 		groupID = "order-consumer-group-v1"
@@ -118,7 +123,7 @@ func StartConsumer(
 	group, err := sarama.NewConsumerGroup(
 		GetBrokers(),
 		groupID,
-		config,
+		configs,
 	)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to create consumer group: %v", err))

@@ -1,7 +1,7 @@
 package kafka
 
 import (
-	"os"
+	"order_management_system/src/config"
 	"strings"
 
 	"github.com/IBM/sarama"
@@ -9,7 +9,12 @@ import (
 
 func GetBrokers() []string {
 
-	brokers := os.Getenv("KAFKA_BROKERS")
+	cfg, err := config.Get(".env")
+	if err != nil {
+		panic(err)
+	}
+
+	brokers := cfg.GetString("KAFKA_BROKERS")
 
 	if brokers == "" {
 		return []string{
@@ -22,23 +27,28 @@ func GetBrokers() []string {
 
 func GetKafkaConfig() *sarama.Config { //config is used to pass multiple configuration properties to sarama's constructor
 
-	config := sarama.NewConfig()
+	configs := sarama.NewConfig()
 
-	config.Version = sarama.V3_6_0_0
+	configs.Version = sarama.V3_6_0_0
 
-	config.Producer.Return.Successes = true
-	config.Producer.Return.Errors = true
+	configs.Producer.Return.Successes = true
+	configs.Producer.Return.Errors = true
 
-	config.Producer.RequiredAcks = sarama.WaitForAll
+	configs.Producer.RequiredAcks = sarama.WaitForAll
 
-	config.Producer.Partitioner = sarama.NewRandomPartitioner //returns partitioner that selects partition randomly
+	configs.Producer.Partitioner = sarama.NewRandomPartitioner //returns partitioner that selects partition randomly
 
-	config.Metadata.Full = true
+	configs.Metadata.Full = true
 
-	compression := os.Getenv("KAFKA_COMPRESSION")
+	cfg, err := config.Get(".env")
+	if err != nil {
+		panic(err)
+	}
+
+	compression := cfg.GetString("KAFKA_COMPRESSION")
 
 	// pass to helper
-	applyCompression(config, compression)
+	applyCompression(configs, compression)
 
-	return config
+	return configs
 }

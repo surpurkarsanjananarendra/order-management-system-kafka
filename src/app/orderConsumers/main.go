@@ -12,16 +12,19 @@ import (
 	"order_management_system/src/utils/database"
 	"order_management_system/src/utils/kafka"
 
-	"github.com/joho/godotenv"
+	"order_management_system/src/config"
+
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	err := godotenv.Load("C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System/.env")
+	config.Init([]string{
+		"C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System",
+	})
+
+	cfg, err := config.Get(".env")
 	if err != nil {
-		log.Println(".env file not found, using system env")
-	} else {
-		fmt.Println("ENV loaded successfully!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		log.Fatal(err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -52,7 +55,7 @@ func main() {
 	// ConsumeOrder(ctx, db.DB) builds the callback closure
 	// StartConsumer calls it for every message
 
-	topic := os.Getenv("KAFKA_ORDER_TOPIC")
+	topic := cfg.GetString("KAFKA_ORDER_TOPIC")
 
 	if topic == "" {
 		log.Fatal("KAFKA_ORDER_TOPIC not found")
@@ -70,5 +73,5 @@ func main() {
 	<-sigterm
 
 	logger.Info("Shutdown signal received, stopping consumer...")
-	cancel()
+	cancel() //if the main is creating the context and itself is cancelling then this is correct but if other func is doing this is not allowed because they have no idea about when to cancel the context
 }

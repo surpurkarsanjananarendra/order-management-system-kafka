@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"order_management_system/src/utils/database"
 	"order_management_system/src/utils/kafka"
 	"orders/router"
-	"os"
 
-	"github.com/joho/godotenv"
+	"order_management_system/src/config"
+
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -22,14 +21,15 @@ import (
 // @name Producer
 // @x-extension-openapi {"example": "value on a json format"}
 func main() {
-	err := godotenv.Load("C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System/.env")
+	config.Init([]string{
+		"C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System",
+	})
+	cfg, err := config.Get(".env")
 	if err != nil {
-		log.Println(".env file not found, using system env")
-	} else {
-		fmt.Println("ENV loaded successfully!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		log.Fatal(err)
 	}
 
-	orderTopic := os.Getenv("KAFKA_ORDER_TOPIC")
+	orderTopic := cfg.GetString("KAFKA_ORDER_TOPIC")
 
 	err = database.InitDB()
 	if err != nil {
