@@ -1,0 +1,6 @@
+kafka:
+  compression: snappy
+  order_topic: temp
+  consumer_group: order-consumer-group-v1
+  brokers:
+    - 192.168.3.163:19092

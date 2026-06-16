@@ -6,7 +6,7 @@ import (
 	"order_management_system/src/utils/kafka"
 	"orders/router"
 
-	"order_management_system/src/config"
+	"order_management_system/src/utils/configs"
 
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -21,15 +21,15 @@ import (
 // @name Producer
 // @x-extension-openapi {"example": "value on a json format"}
 func main() {
-	config.Init([]string{
-		"C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System",
+	configs.Init([]string{
+		"C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System/src/config",
 	})
-	cfg, err := config.Get(".env")
+	cfg, err := configs.Get("application")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	orderTopic := cfg.GetString("KAFKA_ORDER_TOPIC")
+	orderTopic := cfg.GetString("kafka.order_topic")
 
 	err = database.InitDB()
 	if err != nil {

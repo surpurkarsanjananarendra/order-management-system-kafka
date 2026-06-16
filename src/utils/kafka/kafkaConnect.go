@@ -1,54 +1,53 @@
 package kafka
 
 import (
-	"order_management_system/src/config"
-	"strings"
+	"order_management_system/src/utils/configs"
 
 	"github.com/IBM/sarama"
 )
 
 func GetBrokers() []string {
 
-	cfg, err := config.Get(".env")
+	cfg, err := configs.Get("application")
 	if err != nil {
 		panic(err)
 	}
 
-	brokers := cfg.GetString("KAFKA_BROKERS")
+	brokers := cfg.GetStringSlice("kafka.brokers")
 
-	if brokers == "" {
+	if len(brokers) == 0 {
 		return []string{
 			"localhost:9092",
 		}
 	}
 
-	return strings.Split(brokers, ",")
+	return brokers
 }
 
 func GetKafkaConfig() *sarama.Config { //config is used to pass multiple configuration properties to sarama's constructor
 
-	configs := sarama.NewConfig()
+	config := sarama.NewConfig()
 
-	configs.Version = sarama.V3_6_0_0
+	config.Version = sarama.V3_6_0_0
 
-	configs.Producer.Return.Successes = true
-	configs.Producer.Return.Errors = true
+	config.Producer.Return.Successes = true
+	config.Producer.Return.Errors = true
 
-	configs.Producer.RequiredAcks = sarama.WaitForAll
+	config.Producer.RequiredAcks = sarama.WaitForAll
 
-	configs.Producer.Partitioner = sarama.NewRandomPartitioner //returns partitioner that selects partition randomly
+	config.Producer.Partitioner = sarama.NewRandomPartitioner //returns partitioner that selects partition randomly
 
-	configs.Metadata.Full = true
+	config.Metadata.Full = true
 
-	cfg, err := config.Get(".env")
+	cfg, err := configs.Get("application")
 	if err != nil {
 		panic(err)
 	}
 
-	compression := cfg.GetString("KAFKA_COMPRESSION")
+	compression := cfg.GetString("kafka.compression")
 
 	// pass to helper
-	applyCompression(configs, compression)
+	applyCompression(config, compression)
 
-	return configs
+	return config
 }

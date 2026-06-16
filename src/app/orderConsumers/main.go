@@ -12,17 +12,17 @@ import (
 	"order_management_system/src/utils/database"
 	"order_management_system/src/utils/kafka"
 
-	"order_management_system/src/config"
+	"order_management_system/src/utils/configs"
 
 	"github.com/sirupsen/logrus"
 )
 
 func main() {
-	config.Init([]string{
-		"C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System",
+	configs.Init([]string{
+		"C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System/src/config",
 	})
 
-	cfg, err := config.Get(".env")
+	cfg, err := configs.Get("application")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func main() {
 	// ConsumeOrder(ctx, db.DB) builds the callback closure
 	// StartConsumer calls it for every message
 
-	topic := cfg.GetString("KAFKA_ORDER_TOPIC")
+	topic := cfg.GetString("kafka.order_topic")
 
 	if topic == "" {
 		log.Fatal("KAFKA_ORDER_TOPIC not found")
