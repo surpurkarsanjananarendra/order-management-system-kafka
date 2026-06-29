@@ -30,48 +30,68 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 1. Init DB
-	err = database.InitDB()
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
-	fmt.Println("=== DB initialized ===")
-
-	// 2. Setup logger
 	logger := logrus.New()
 	logger.SetFormatter(&logrus.JSONFormatter{PrettyPrint: true})
 
-	// 3. Get DB instance and validate
-	db := database.GetDB()
-	if db == nil {
-		log.Fatal("GetDB() returned nil — InitDB may have failed silently")
+	if err := database.InitDB(); err != nil {
+		log.Fatalf("failed to initialize database: %v", err)
 	}
-	if db.DB == nil {
-		log.Fatal("db.DB is nil — models.Database not set correctly")
-	}
-	fmt.Println("=== DB instance verified ===")
+	fmt.Println("=== DB initialized ===")
 
-	// 4. Start Kafka consumer in goroutine
-	// ConsumeOrder(ctx, db.DB) builds the callback closure
-	// StartConsumer calls it for every message
+	db := database.GetDB()
+	if db == nil || db.DB == nil {
+		log.Fatal("database instance is nil — check InitDB")
+	}
 
 	topic := cfg.GetString("kafka.order_topic")
-
 	if topic == "" {
-		log.Fatal("KAFKA_ORDER_TOPIC not found")
+		log.Fatal("kafka.order_topic not set in config")
 	}
-	go kafka.StartConsumer(
-		ctx,
-		topic,
-		repository.ConsumeOrder(ctx, db.DB),
-	)
-	fmt.Println("=== Kafka consumer started ===")
 
-	// 5. Block until Ctrl+C or kill signal
+	producer, err := kafka.NewProducer()
+	if err != nil {
+		log.Fatalf("failed to create kafka producer: %v", err)
+	}
+	defer producer.Close()
+
+	// ── Retry config ─────────────────────────────────────────────────────────
+	// Change delays here to tune retry behaviour for your SLA.
+	retryConfig := kafka.DefaultRetryConfig() // 5s · 30s · 120s → DLQ
+
+	// ── DLQ router (wires into the main consumer) ────────────────────────────
+	consumerGroup := cfg.GetString("kafka.consumer_group")
+	if consumerGroup == "" {
+		consumerGroup = "order-consumer-group-v1"
+	}
+
+	dlqRouter := kafka.NewDLQRouter(producer, topic, consumerGroup, retryConfig, logger)
+
+	callback := repository.ConsumeOrder(ctx, db.DB)
+
+	// ── Main consumer ────────────────────────────────────────────────────────
+	go kafka.StartConsumer(ctx, topic, callback, dlqRouter, logger)
+	logger.WithField("topic", topic).Info("main consumer started")
+
+	// ── Retry consumers (one per retry topic) ───────────────────────────────
+	// Each hop has its own consumer group, its own delay, and its own DLQ router.
+	// On exhaustion the DLQ router routes to the next hop or final DLQ automatically.
+	go kafka.StartRetryConsumer(ctx, topic, retryConfig, callback, dlqRouter, logger)
+	logger.Info("retry consumers started")
+
+	// ── DLQ processor ────────────────────────────────────────────────────────
+	dlqProcessorConfig := kafka.DefaultDLQProcessorConfig()
+	// Uncomment to enable automatic replay once the root cause is fixed:
+	// dlqProcessorConfig.EnableReplay = true
+	dlqProcessor := kafka.NewDLQProcessor(producer, dlqProcessorConfig, logger)
+
+	go kafka.StartDLQProcessor(ctx, topic, dlqProcessor, logger)
+	logger.Info("DLQ processor started")
+
+	// ── Graceful shutdown ────────────────────────────────────────────────────
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 	<-sigterm
 
-	logger.Info("Shutdown signal received, stopping consumer...")
-	cancel() //if the main is creating the context and itself is cancelling then this is correct but if other func is doing this is not allowed because they have no idea about when to cancel the context
+	logger.Info("shutdown signal received, stopping all consumers...")
+	cancel()
 }

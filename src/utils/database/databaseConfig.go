@@ -26,7 +26,7 @@ func InitDB() error {
 			initErr = errors.New("DATABASE_URL is not Set")
 			return
 		}
-
+ 
 		gdb, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err != nil {
 			initErr = fmt.Errorf("open database: %w", err)
