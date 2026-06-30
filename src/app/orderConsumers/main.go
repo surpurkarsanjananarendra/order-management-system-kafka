@@ -19,7 +19,7 @@ import (
 
 func main() {
 	configs.Init([]string{
-		"C:/Users/Coditas-Admin/Documents/Coditas Internship/Order_Management_System/src/config",
+		"../../config",
 	})
 
 	cfg, err := configs.Get("application")
